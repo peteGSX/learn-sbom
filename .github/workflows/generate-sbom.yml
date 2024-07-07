@@ -7,9 +7,12 @@ on:
   pull_request:
     branches: [ main ]
 
-jobs:
+jobs:  
   generate-sbom:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
 
@@ -27,9 +30,16 @@ jobs:
           syft . -o github > github-dependencies.json
 
       - name: Upload GitHub dependencies
-        uses: actions/dependency-submission-action@v3
-        with:
-          dependency-file: github-dependencies.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Verion: 2022-11-28" \
+            https://api.github.com/repos/${{ github.repository }}/dependency-graph/snapshots \
+            -d @github-dependencies.json
 
       - name: Scan for vulnerabilities
         run: |
@@ -45,7 +55,7 @@ jobs:
         uses: actions/github-script@v6
         if: github.event_name == 'pull_request'
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
             const grypeScan = fs.readFileSync('grype-results.txt', 'utf8')
