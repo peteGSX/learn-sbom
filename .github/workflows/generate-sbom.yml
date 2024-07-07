@@ -27,7 +27,7 @@ jobs:
           syft . -o github > github-dependencies.json
 
       - name: Upload GitHub dependencies
-        uses: github/dependency-submission-action@v3
+        uses: actions/dependency-submission-action@v3
         with:
           dependency-file: github-dependencies.json
 
