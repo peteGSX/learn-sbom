@@ -17,5 +17,53 @@ jobs:
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
         
+      - name: Install Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+      
       - name: Generate SBOM
-        run: syft . -o cyclonedx-json > sbom.json
+        run: |
+          syft . -o cyclonedx-json > sbom.json
+          syft . -o github > github-dependencies.json
+
+      - name: Upload GitHub dependencies
+        uses: github/dependency-submission-action@v3
+        with:
+          dependency-file: github-dependencies.json
+
+      - name: Scan for vulnerabilities
+        run: |
+          grype sbom:./sbom.json --output table > grype-results.txt
+          grype sbom:./sbom.json --output sarif > grype-results.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: grype-results.sarif
+      
+      - name: Comment PR
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const fs = require('fs');
+            const grypeScan = fs.readFileSync('grype-results.txt', 'utf8')
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## Grype Vulnerability Scan Results\n\n```\n' + grypeScan + '\n```'
+            })
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+
+      - name: Upload Grype results
+        uses: actions/upload-artifact@v4
+        with:
+          name: grype-results
+          path: grype-results.txt
