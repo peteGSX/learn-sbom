@@ -1,0 +1,21 @@
+name: Generate SBOM
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+        
+      - name: Generate SBOM
+        run: syft . -o cyclonedx-json > sbom.json
