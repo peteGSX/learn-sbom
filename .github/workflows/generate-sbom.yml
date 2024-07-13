@@ -29,6 +29,7 @@ jobs:
           syft . -o cyclonedx-json > sbom.json
           syft . -o github > github-dependencies.json
           syft . -o cyclonedx-xml > sbom.xml
+          syft --help
 
       - name: Upload GitHub dependencies
         env:
